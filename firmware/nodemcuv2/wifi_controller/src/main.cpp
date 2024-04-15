@@ -5,8 +5,11 @@
 #include <LittleFS.h>
 #include <SPI.h>
 
-#define WIFI_SSID "wifi_network_name"
-#define WIFI_PASSWORD "wifi_password"
+#define WIFI_SSID "cooper"
+#define WIFI_PASSWORD "bin130876"
+#define WIFI_TIMEOUT 5000
+#define WIFI_STATUS_LED D3
+#define DEBUG 1
 
 AsyncWebServer server(80);
 
@@ -17,7 +20,49 @@ void feed(const uint8_t &AMOUNT) {
     digitalWrite(SS, HIGH);
 }
 
+///////////////////////////////////////////////////////////////////
+// WiFi
+///////////////////////////////////////////////////////////////////
+
+bool is_connected() {
+    return WiFi.status() == WL_CONNECTED;
+}
+
+void connect_to_wifi(const char *SSID, const char *PASSWORD) {
+#if DEBUG > 0
+    Serial.print("\nConnecting to ");
+    Serial.print(WIFI_SSID);
+#endif
+
+    WiFi.begin(SSID, PASSWORD);
+
+    while (!is_connected()) {
+        yield();
+
+        static uint32_t wifi_timer = millis();
+        if (millis() - wifi_timer > 500) {
+            wifi_timer = millis();
+            digitalWrite(WIFI_STATUS_LED, !digitalRead(WIFI_STATUS_LED));
+
+#if DEBUG > 0
+            Serial.print('.');
+#endif
+        }
+    }
+
+    digitalWrite(WIFI_STATUS_LED, 1);
+
+#if DEBUG > 0
+    Serial.println("\nConnected.");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+#endif
+}
+
 [[maybe_unused]] void setup() {
+    pinMode(WIFI_STATUS_LED, OUTPUT);
+    digitalWrite(WIFI_STATUS_LED, 0);
+
     Serial.begin(115200);
 
     pinMode(SS, OUTPUT);
@@ -29,23 +74,11 @@ void feed(const uint8_t &AMOUNT) {
         return;
     }
 
-    Serial.print("Connecting to ");
-    Serial.print(WIFI_SSID);
+    connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
 
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) {
-        yield();
-
-        static uint32_t wifi_timer = millis();
-        if (millis() - wifi_timer > 500) {
-            wifi_timer = millis();
-            Serial.print('.');
-        }
-    }
-
-    Serial.println("\nConnected.");
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.localIP());
+    ///////////////////////////////////////////////////////////////////
+    // Server requests
+    ///////////////////////////////////////////////////////////////////
 
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(LittleFS, "/index.html", "text/html");
@@ -73,4 +106,13 @@ void feed(const uint8_t &AMOUNT) {
     server.begin();
 }
 
-void loop() {}
+void loop() {
+    static uint32_t wifi_timeout = millis();
+    if (millis() - wifi_timeout > WIFI_TIMEOUT) {
+        wifi_timeout = millis();
+        if (!is_connected()) {
+            digitalWrite(WIFI_STATUS_LED, 0);
+            connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
+        }
+    }
+}

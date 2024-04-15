@@ -1,11 +1,13 @@
 #include "stepper_motor.h"
 
-static volatile struct stepper_motor_config smc;
+/*
+
+static volatile DRV8825_STEPPER_MOTOR smc;
 
 static volatile uint16_t stepper_motor_revs;
 
-__attribute__((unused)) void init_stepper_motor(const struct stepper_motor_config *SMC) {
-    smc = *SMC;
+__attribute__((unused)) void init_stepper_motor(const DRV8825_STEPPER_MOTOR *stepper_motor) {
+    smc = *stepper_motor;
 
     LED_DDR |= (1 << LED_PIN);
     LED_PORT &= ~(1 << LED_PIN);
@@ -14,15 +16,15 @@ __attribute__((unused)) void init_stepper_motor(const struct stepper_motor_confi
     DRV_M1_DDR |= (1 << DRV_M1_PIN);
     DRV_M2_DDR |= (1 << DRV_M2_PIN);
 
-    DRV_M0_PORT |= ((1 & (uint8_t) smc.micro_steps) << DRV_M0_PIN);
-    DRV_M1_PORT |= ((1 & (((uint8_t) smc.micro_steps & (1 << 1)) >> 1)) << DRV_M1_PIN);
-    DRV_M2_PORT |= ((1 & (((uint8_t) smc.micro_steps & (1 << 2)) >> 2)) << DRV_M2_PIN);
+    DRV_M0_PORT |= ((1 & (uint8_t) smc.microsteps) << DRV_M0_PIN);
+    DRV_M1_PORT |= ((1 & (((uint8_t) smc.microsteps & (1 << 1)) >> 1)) << DRV_M1_PIN);
+    DRV_M2_PORT |= ((1 & (((uint8_t) smc.microsteps & (1 << 2)) >> 2)) << DRV_M2_PIN);
 
     DRV_EN_DDR |= (1 << DRV_EN_PIN);
     DRV_EN_PORT |= (1 << DRV_EN_PIN);
 
     DRV_DIR_DDR |= (1 << DRV_DIR_PIN);
-    DRV_DIR_PORT |= ((1 & (uint8_t) smc.dir) << DRV_DIR_PIN);
+    DRV_DIR_PORT |= ((1 & (uint8_t) smc.direction) << DRV_DIR_PIN);
 
     DRV_STEP_DDR |= (1 << DRV_STEP_PIN);
     DRV_STEP_PORT &= ~(1 << DRV_STEP_PIN);
@@ -31,7 +33,9 @@ __attribute__((unused)) void init_stepper_motor(const struct stepper_motor_confi
     TCCR1A = 0;
     TCCR1B |= (1 << WGM12) | (1 << CS10);
     TCNT1 = 0;
-    OCR1A = (F_CPU * smc.impulse_delay) / 1000000UL - 1;
+
+    const uint32_t IMPULSE_FREQ = (uint32_t) (pow(2, stepper_motor->microsteps - 1) * stepper_motor->rpm) / 60;
+    OCR1A = (F_CPU * IMPULSE_FREQ) - 1;
     sei();
 }
 
@@ -63,20 +67,29 @@ ISR(TIMER1_COMPA_vect) {
     static volatile uint32_t step = 0;
     static volatile uint32_t revs = 0;
 
+    //DRV_STEP_PORT ^= (1 << DRV_STEP_PIN);
+    //if (DRV_STEP_PORT & (1 << DRV_STEP_PIN)) {
+    //    step++;
+    //    if (step >= 200 * (1 << (uint8_t) smc.microsteps)) {
+    //        stop_stepper_motor();
+    //        TCNT1 = 0;
+    //    }
+    //}
+
     DRV_STEP_PORT ^= (1 << DRV_STEP_PIN);
     if (DRV_STEP_PORT & (1 << DRV_STEP_PIN)) {
-        if (dir && step >= smc.forward_steps) {
+        if (dir && step >= smc.steps_forward) {
             DRV_DIR_PORT ^= (1 << DRV_DIR_PIN);
             step = 0;
             dir = 0;
 
-        } else if (!dir && step >= smc.backward_steps) {
+        } else if (!dir && step >= smc.steps_backward) {
             DRV_DIR_PORT ^= (1 << DRV_DIR_PIN);
             step = 0;
             dir = 1;
 
-            const volatile uint16_t REQUIRED_STEPS = 200 * (1 << (uint8_t) smc.micro_steps);
-            if (++revs >= (REQUIRED_STEPS / (smc.forward_steps - smc.backward_steps) * stepper_motor_revs)) {
+            const volatile uint16_t REQUIRED_STEPS = 200 * (1 << (uint8_t) smc.microsteps);
+            if (++revs >= (REQUIRED_STEPS / (smc.steps_forward - smc.steps_backward) * stepper_motor_revs)) {
                 revs = 0;
                 stop_stepper_motor();
                 TCNT1 = 0;
@@ -84,3 +97,6 @@ ISR(TIMER1_COMPA_vect) {
         } else step++;
     }
 }
+*/
+
+

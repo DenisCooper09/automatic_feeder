@@ -2,36 +2,43 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <math.h>
 
+#include "bits.h"
 #include "ports.h"
 
-enum MOTOR_MICRO_STEPS {
-    FULL_STEP __attribute__((unused)),
-    MICRO_STEPS_2 __attribute__((unused)),
-    MICRO_STEPS_4 __attribute__((unused)),
-    MICRO_STEPS_8 __attribute__((unused)),
-    MICRO_STEPS_16 __attribute__((unused)),
-    MICRO_STEPS_32 __attribute__((unused))
-};
+/*
 
-enum MOTOR_DIRECTION {
-    ANTI_CLOCKWISE __attribute__((unused)),
-    CLOCKWISE __attribute__((unused))
-};
+typedef enum DRV8825_STEPPER_MOTOR_MICROSTEPS {
+    STEPPER_MOTOR_FULL_STEP,
+    STEPPER_MOTOR_HALF_STEP,
+    STEPPER_MOTOR_QUARTER_STEP,
+    STEPPER_MOTOR_8_MICROSTEPS,
+    STEPPER_MOTOR_16_MICROSTEPS,
+    STEPPER_MOTOR_32_MICROSTEPS
+} DRV8825_STEPPER_MOTOR_MICROSTEPS;
 
-struct stepper_motor_config {
-    volatile uint16_t impulse_delay;
-    volatile uint8_t forward_steps;
-    volatile uint8_t backward_steps;
+typedef enum DRV8825_STEPPER_MOTOR_DIRECTION {
+    ANTICLOCKWISE,
+    CLOCKWISE
+} DRV8825_STEPPER_MOTOR_DIRECTION;
 
-    volatile enum MOTOR_MICRO_STEPS micro_steps;
-    volatile enum MOTOR_DIRECTION dir;
-};
+typedef struct DRV8825_STEPPER_MOTOR {
+    volatile uint16_t rpm;
+    volatile uint8_t steps_forward, steps_backward;
 
-__attribute__((unused)) void init_stepper_motor(const struct stepper_motor_config *SMC);
+    volatile DRV8825_STEPPER_MOTOR_MICROSTEPS microsteps;
+    volatile DRV8825_STEPPER_MOTOR_DIRECTION direction;
+} DRV8825_STEPPER_MOTOR;
+
+__attribute__((unused)) void init_stepper_motor(const DRV8825_STEPPER_MOTOR *SMC);
 
 __attribute__((unused)) void run_stepper_motor(uint16_t revs);
 
 __attribute__((unused)) void resume_stepper_motor(void);
 
 __attribute__((unused)) void stop_stepper_motor(void);
+*/
+
+
+
