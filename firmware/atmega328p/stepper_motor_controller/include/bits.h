@@ -9,14 +9,6 @@
         } \
     } while(0)
 
-#define VAL_BIT(reg, val, ...) \
-    do { \
-        uint8_t bits[] = {__VA_ARGS__}; \
-        for (uint32_t bit = 0; bit < sizeof(bits) / sizeof(bits[0]); ++bit) { \
-            (reg) |= ((1 << (bits[bit])) & (val << (bits[bit]))); \
-        } \
-    } while(0)
-
 #define CLR_BIT(reg, ...) \
     do { \
         uint8_t bits[] = {__VA_ARGS__}; \

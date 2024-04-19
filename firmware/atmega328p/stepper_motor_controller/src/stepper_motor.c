@@ -1,102 +1,110 @@
 #include "stepper_motor.h"
 
-/*
+void sm_init() {
+    /* Set all control pins as outputs. */
+    SET_BIT(DRV_M0_DDR, DRV_M0_PIN);
+    SET_BIT(DRV_M1_DDR, DRV_M1_PIN);
+    SET_BIT(DRV_M2_DDR, DRV_M2_PIN);
+    SET_BIT(DRV_EN_DDR, DRV_EN_PIN);
+    SET_BIT(DRV_DIR_DDR, DRV_DIR_PIN);
+    SET_BIT(DRV_STEP_DDR, DRV_STEP_PIN);
+    SET_BIT(LED_INDICATOR_DDR, LED_INDICATOR_PIN);
 
-static volatile DRV8825_STEPPER_MOTOR smc;
+    /* Disable the driver. */
+    SET_BIT(DRV_EN_PORT, DRV_EN_PIN);
 
-static volatile uint16_t stepper_motor_revs;
+    /* Configure microstepping (32 microsteps/step). */
+    SET_BIT(DRV_M0_PORT, DRV_M0_PIN);
+    SET_BIT(DRV_M1_PORT, DRV_M1_PIN);
+    SET_BIT(DRV_M2_PORT, DRV_M2_PIN);
 
-__attribute__((unused)) void init_stepper_motor(const DRV8825_STEPPER_MOTOR *stepper_motor) {
-    smc = *stepper_motor;
+    /* Set motor direction to clockwise. */
+    SET_BIT(DRV_DIR_PORT, DRV_DIR_PIN);
 
-    LED_DDR |= (1 << LED_PIN);
-    LED_PORT &= ~(1 << LED_PIN);
+    CLR_BIT(DRV_STEP_PORT, DRV_STEP_PIN);
 
-    DRV_M0_DDR |= (1 << DRV_M0_PIN);
-    DRV_M1_DDR |= (1 << DRV_M1_PIN);
-    DRV_M2_DDR |= (1 << DRV_M2_PIN);
-
-    DRV_M0_PORT |= ((1 & (uint8_t) smc.microsteps) << DRV_M0_PIN);
-    DRV_M1_PORT |= ((1 & (((uint8_t) smc.microsteps & (1 << 1)) >> 1)) << DRV_M1_PIN);
-    DRV_M2_PORT |= ((1 & (((uint8_t) smc.microsteps & (1 << 2)) >> 2)) << DRV_M2_PIN);
-
-    DRV_EN_DDR |= (1 << DRV_EN_PIN);
-    DRV_EN_PORT |= (1 << DRV_EN_PIN);
-
-    DRV_DIR_DDR |= (1 << DRV_DIR_PIN);
-    DRV_DIR_PORT |= ((1 & (uint8_t) smc.direction) << DRV_DIR_PIN);
-
-    DRV_STEP_DDR |= (1 << DRV_STEP_PIN);
-    DRV_STEP_PORT &= ~(1 << DRV_STEP_PIN);
-
+    /* Disable interrupts. */
     cli();
-    TCCR1A = 0;
-    TCCR1B |= (1 << WGM12) | (1 << CS10);
-    TCNT1 = 0;
 
-    const uint32_t IMPULSE_FREQ = (uint32_t) (pow(2, stepper_motor->microsteps - 1) * stepper_motor->rpm) / 60;
-    OCR1A = (F_CPU * IMPULSE_FREQ) - 1;
+    /* Clear timer registers. */
+    TCCR1A = 0x00;
+    TCCR1B = 0x00;
+    TCNT1 = 0x0000;
+
+    /* Set prescaler to 1 (no prescaling). */
+    SET_BIT(TCCR1B, CS10);
+
+    /* Allow interrupts. */
     sei();
 }
 
-__attribute__((unused)) void run_stepper_motor(uint16_t revs) {
-    stepper_motor_revs = revs;
-    DRV_EN_PORT &= ~(1 << DRV_EN_PIN);
-    LED_PORT |= (1 << LED_PIN);
-    asm volatile("nop");
-    TCNT1 = 0;
-    TIMSK1 |= (1 << OCIE1A);
+void sm_run(double revolutions) {
+    revolutions_ = revolutions;
+
+    sm_enable_drv();
+    sm_enable_indicator();
+
+    SET_BIT(TIMSK1, TOIE1);
 }
 
-__attribute__((unused)) void resume_stepper_motor(void) {
-    DRV_EN_PORT &= ~(1 << DRV_EN_PIN);
-    LED_PORT |= (1 << LED_PIN);
-    asm volatile("nop");
-    TIMSK1 |= (1 << OCIE1A);
+void sm_enable_drv() {
+    CLR_BIT(DRV_EN_PORT, DRV_EN_PIN);
 }
 
-__attribute__((unused)) void stop_stepper_motor(void) {
-    TIMSK1 &= ~(1 << OCIE1A);
-    asm volatile("nop");
-    DRV_EN_PORT |= (1 << DRV_EN_PIN);
-    LED_PORT &= ~(1 << LED_PIN);
+void sm_disable_drv() {
+    SET_BIT(DRV_EN_PORT, DRV_EN_PIN);
 }
 
-ISR(TIMER1_COMPA_vect) {
-    static volatile uint8_t dir = 1;
-    static volatile uint32_t step = 0;
-    static volatile uint32_t revs = 0;
+void sm_enable_indicator() {
+    SET_BIT(LED_INDICATOR_PORT, LED_INDICATOR_PIN);
+}
 
-    //DRV_STEP_PORT ^= (1 << DRV_STEP_PIN);
-    //if (DRV_STEP_PORT & (1 << DRV_STEP_PIN)) {
-    //    step++;
-    //    if (step >= 200 * (1 << (uint8_t) smc.microsteps)) {
-    //        stop_stepper_motor();
-    //        TCNT1 = 0;
-    //    }
-    //}
+void sm_disable_indicator() {
+    CLR_BIT(LED_INDICATOR_PORT, LED_INDICATOR_PIN);
+}
 
-    DRV_STEP_PORT ^= (1 << DRV_STEP_PIN);
-    if (DRV_STEP_PORT & (1 << DRV_STEP_PIN)) {
-        if (dir && step >= smc.steps_forward) {
-            DRV_DIR_PORT ^= (1 << DRV_DIR_PIN);
-            step = 0;
-            dir = 0;
+ISR(TIMER1_OVF_vect) {
+    static volatile uint8_t steps = 0;
+    static volatile uint32_t cycle = 0;
+    static volatile SM_DIRECTION dir = CLOCKWISE;
 
-        } else if (!dir && step >= smc.steps_backward) {
-            DRV_DIR_PORT ^= (1 << DRV_DIR_PIN);
-            step = 0;
-            dir = 1;
+    INV_BIT(DRV_STEP_PORT, DRV_STEP_PIN);
 
-            const volatile uint16_t REQUIRED_STEPS = 200 * (1 << (uint8_t) smc.microsteps);
-            if (++revs >= (REQUIRED_STEPS / (smc.steps_forward - smc.steps_backward) * stepper_motor_revs)) {
-                revs = 0;
-                stop_stepper_motor();
-                TCNT1 = 0;
+    if (GET_BIT(DRV_STEP_PORT, DRV_STEP_PIN)) {
+        steps++;
+
+        if (dir == CLOCKWISE && steps >= SM_STEPS_FORWARD) {
+            INV_BIT(DRV_DIR_PORT, DRV_DIR_PIN);
+            steps = 0;
+            dir = ANTICLOCKWISE;
+        }
+
+        if (dir == ANTICLOCKWISE && steps >= SM_STEPS_BACKWARD) {
+            INV_BIT(DRV_DIR_PORT, DRV_DIR_PIN);
+            steps = 0;
+            dir = CLOCKWISE;
+
+            /*
+             * Full revolution takes 200 * 32 = 6400 microsteps.
+             *
+             * One cycle is 100 steps forward and 90 steps backward.
+             * So in total motor has made 10 steps forward.
+             *
+             * Dividing total number of microsteps (6400) by steps forward gives number of cycles to make one revolution.
+             *
+             * 6400 / (100 - 90) = 640 cycles
+             *
+             * By multiplying number of cycles by a constant ("SM_REVOLUTIONS") we can control number of revolutions we want motor to make.
+             * */
+            if (++cycle >= (uint32_t) ((200.0 * 32) / (SM_STEPS_FORWARD - SM_STEPS_BACKWARD) * revolutions_)) {
+                CLR_BIT(TIMSK1, TOIE1);
+                TCNT1 = 0x0000;
+
+                sm_disable_drv();
+                sm_disable_indicator();
             }
-        } else step++;
+        }
     }
+
+    TCNT1 = 0xFFFF - (F_CPU / SM_PULSES_FREQUENCY_HZ);
 }
-*/
-
-

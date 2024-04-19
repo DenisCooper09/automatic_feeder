@@ -1,22 +1,27 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <LittleFS.h>
+#include <RTClib.h>
 #include <SPI.h>
 
-#define WIFI_SSID "cooper"
-#define WIFI_PASSWORD "bin130876"
+#define WIFI_SSID "vodafone2B40D4"
+#define WIFI_PASSWORD "HKftgFF2qdrhm7Mg"
 #define WIFI_TIMEOUT 5000
 #define WIFI_STATUS_LED D3
+#define MDNS_HOSTNAME "feeder"
 #define DEBUG 1
 
 AsyncWebServer server(80);
+RTC_DS1307 rtc;
 
-void feed(const uint8_t &AMOUNT) {
+void feed(uint8_t amount) {
     digitalWrite(SS, LOW);
-    SPI.transfer(1);
-    SPI.transfer(AMOUNT);
+    SPI.transfer(0x1F);
+    SPI.transfer(amount);
+    Serial.print(amount);
     digitalWrite(SS, HIGH);
 }
 
@@ -40,7 +45,7 @@ void connect_to_wifi(const char *SSID, const char *PASSWORD) {
         yield();
 
         static uint32_t wifi_timer = millis();
-        if (millis() - wifi_timer > 500) {
+        if (millis() - wifi_timer > 250) {
             wifi_timer = millis();
             digitalWrite(WIFI_STATUS_LED, !digitalRead(WIFI_STATUS_LED));
 
@@ -76,6 +81,12 @@ void connect_to_wifi(const char *SSID, const char *PASSWORD) {
 
     connect_to_wifi(WIFI_SSID, WIFI_PASSWORD);
 
+    if (!MDNS.begin(MDNS_HOSTNAME)) {
+#if DEBUG > 0
+        Serial.println("Error setting up MDNS responder!");
+#endif
+    }
+
     ///////////////////////////////////////////////////////////////////
     // Server requests
     ///////////////////////////////////////////////////////////////////
@@ -94,8 +105,8 @@ void connect_to_wifi(const char *SSID, const char *PASSWORD) {
 
     server.on("/feed", HTTP_GET, [](AsyncWebServerRequest *request) {
         const String AMOUNT_STR = request->arg("amount");
-        const auto FEED_AMOUNT = static_cast<uint8_t>(AMOUNT_STR.toInt());
-        feed(FEED_AMOUNT);
+        feed((uint8_t) AMOUNT_STR.toInt());
+
         request->send(200, "text/plain", "Feeding action triggered with amount: " + AMOUNT_STR);
     });
 
@@ -107,6 +118,8 @@ void connect_to_wifi(const char *SSID, const char *PASSWORD) {
 }
 
 void loop() {
+    MDNS.update();
+
     static uint32_t wifi_timeout = millis();
     if (millis() - wifi_timeout > WIFI_TIMEOUT) {
         wifi_timeout = millis();
