@@ -40,15 +40,6 @@
 #define LED_INDICATOR_PORT PORTD
 
 ///////////////////////////////////////////////////////
-// Settings
-///////////////////////////////////////////////////////
-
-#define SM_PULSES_FREQUENCY_HZ 40000
-
-#define SM_STEPS_FORWARD 100
-#define SM_STEPS_BACKWARD 90
-
-///////////////////////////////////////////////////////
 // Enums
 ///////////////////////////////////////////////////////
 
@@ -67,11 +58,21 @@ typedef enum SM_DIRECTION {
 } SM_DIRECTION;
 
 ///////////////////////////////////////////////////////
+// Settings
+///////////////////////////////////////////////////////
+
+#define SM_PULSES_FREQUENCY_HZ 40000
+
+#define SM_STEPS_FORWARD 100
+#define SM_STEPS_BACKWARD 90
+
+#define SM_ROTATION_DIRECTION CLOCKWISE
+
+///////////////////////////////////////////////////////
 // Global Variables
 ///////////////////////////////////////////////////////
 
 static volatile double revolutions_;
-static bool is_running_;
 
 ///////////////////////////////////////////////////////
 // Functions
@@ -81,18 +82,8 @@ void sm_init();
 
 void sm_run(double revolutions);
 
+void sm_resume();
+
 void sm_stop();
 
 bool sm_is_running();
-
-void sm_enable_drv();
-
-void sm_disable_drv();
-
-void sm_enable_tmr();
-
-void sm_disable_tmr();
-
-void sm_enable_indicator();
-
-void sm_disable_indicator();

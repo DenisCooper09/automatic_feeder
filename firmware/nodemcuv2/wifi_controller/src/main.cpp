@@ -7,6 +7,10 @@
 #include <RTClib.h>
 #include <SPI.h>
 
+/*
+ * Open control panel by entering "feeder.local" into your browser.
+ * */
+
 #define WIFI_SSID "vodafone2B40D4"
 #define WIFI_PASSWORD "HKftgFF2qdrhm7Mg"
 #define WIFI_TIMEOUT 5000
@@ -21,7 +25,6 @@ void feed(uint8_t amount) {
     digitalWrite(SS, LOW);
     SPI.transfer(0x1F);
     SPI.transfer(amount);
-    Serial.print(amount);
     digitalWrite(SS, HIGH);
 }
 
@@ -68,14 +71,18 @@ void connect_to_wifi(const char *SSID, const char *PASSWORD) {
     pinMode(WIFI_STATUS_LED, OUTPUT);
     digitalWrite(WIFI_STATUS_LED, 0);
 
+#if DEBUG > 0
     Serial.begin(115200);
+#endif
 
     pinMode(SS, OUTPUT);
     digitalWrite(SS, HIGH);
     SPI.begin();
 
     if (!LittleFS.begin()) {
+#if DEBUG > 0
         Serial.println("An error has occurred while mounting LittleFS.");
+#endif
         return;
     }
 

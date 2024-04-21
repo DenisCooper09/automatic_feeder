@@ -1,5 +1,33 @@
 #include "stepper_motor.h"
 
+static void sm_clear_timer() {
+    TCNT1 = 0x0000;
+}
+
+static void sm_enable_timer() {
+    SET_BIT(TCCR1B, CS10);
+}
+
+static void sm_disable_timer() {
+    CLR_BIT(TCCR1B, CS10);
+}
+
+static void sm_enable_driver() {
+    CLR_BIT(DRV_EN_PORT, DRV_EN_PIN);
+}
+
+static void sm_disable_driver() {
+    SET_BIT(DRV_EN_PORT, DRV_EN_PIN);
+}
+
+static void sm_enable_indicator() {
+    SET_BIT(LED_INDICATOR_PORT, LED_INDICATOR_PIN);
+}
+
+static void sm_disable_indicator() {
+    CLR_BIT(LED_INDICATOR_PORT, LED_INDICATOR_PIN);
+}
+
 void sm_init() {
     /* Set all control pins as outputs. */
     SET_BIT(DRV_M0_DDR, DRV_M0_PIN);
@@ -31,8 +59,8 @@ void sm_init() {
     TCCR1B = 0x00;
     TCNT1 = 0x0000;
 
-    /* Set prescaler to 1 (no prescaling). */
-    SET_BIT(TCCR1B, CS10);
+    /* Enable timer1 overflow interrupt. */
+    SET_BIT(TIMSK1, TOIE1);
 
     /* Allow interrupts. */
     sei();
@@ -41,32 +69,35 @@ void sm_init() {
 void sm_run(double revolutions) {
     revolutions_ = revolutions;
 
-    sm_enable_drv();
+    sm_enable_driver();
     sm_enable_indicator();
 
-    SET_BIT(TIMSK1, TOIE1);
+    sm_clear_timer();
+    sm_enable_timer();
 }
 
-void sm_enable_drv() {
-    CLR_BIT(DRV_EN_PORT, DRV_EN_PIN);
+void sm_resume() {
+    sm_enable_driver();
+    sm_enable_indicator();
+
+    sm_enable_timer();
 }
 
-void sm_disable_drv() {
-    SET_BIT(DRV_EN_PORT, DRV_EN_PIN);
+void sm_stop() {
+    sm_disable_timer();
+
+    sm_disable_driver();
+    sm_disable_indicator();
 }
 
-void sm_enable_indicator() {
-    SET_BIT(LED_INDICATOR_PORT, LED_INDICATOR_PIN);
-}
-
-void sm_disable_indicator() {
-    CLR_BIT(LED_INDICATOR_PORT, LED_INDICATOR_PIN);
+bool sm_is_running() {
+    return GET_BIT(TCCR1B, CS10);
 }
 
 ISR(TIMER1_OVF_vect) {
     static volatile uint8_t steps = 0;
     static volatile uint32_t cycle = 0;
-    static volatile SM_DIRECTION dir = CLOCKWISE;
+    static volatile SM_DIRECTION dir = SM_ROTATION_DIRECTION;
 
     INV_BIT(DRV_STEP_PORT, DRV_STEP_PIN);
 
@@ -97,11 +128,10 @@ ISR(TIMER1_OVF_vect) {
              * By multiplying number of cycles by a constant ("SM_REVOLUTIONS") we can control number of revolutions we want motor to make.
              * */
             if (++cycle >= (uint32_t) ((200.0 * 32) / (SM_STEPS_FORWARD - SM_STEPS_BACKWARD) * revolutions_)) {
-                CLR_BIT(TIMSK1, TOIE1);
-                TCNT1 = 0x0000;
+                cycle = 0;
+                dir = SM_ROTATION_DIRECTION;
 
-                sm_disable_drv();
-                sm_disable_indicator();
+                sm_stop();
             }
         }
     }
