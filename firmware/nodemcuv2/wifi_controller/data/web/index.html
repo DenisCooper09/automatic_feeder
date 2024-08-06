@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automatic Feeder</title>
+
+    <link rel="stylesheet" href="style.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+
+    <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.13.0/Sortable.min.js"></script>
+</head>
+<body>
+
+<header>
+    <h1>Automatic Feeder</h1>
+</header>
+
+<div class="container">
+    <label for="feed_amount">Feed Amount:</label>
+    <input class="integer-input" type="number" id="feed_amount" name="feed_amount" min="1" max="255" value="5">
+    <button class="button" id="feed_button" onclick="feed()">Feed Now</button>
+</div>
+
+<div class="container">
+    <ul id="feeding_schedule_list"></ul>
+    <button class="button" onclick="add_feeding_schedule()">Add Schedule</button>
+    <button class="button" onclick="send_feeding_schedule()">Save Schedule</button>
+</div>
+
+</body>
+</html>

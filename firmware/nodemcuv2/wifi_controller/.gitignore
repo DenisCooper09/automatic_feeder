@@ -3,3 +3,6 @@
 
 # CLion
 .idea
+
+# WiFi Wifi Information
+config/wifi.txt
